@@ -1,0 +1,12 @@
+@font-face { font-family: 'Geist'; src: url('/motor/fontes/Geist-Variable.ttf'); font-weight: 100 900; }
+@font-face { font-family: 'Geist Mono'; src: url('/motor/fontes/GeistMono-Variable.ttf'); font-weight: 100 900; }
+@font-face { font-family: 'DM Serif'; src: url('/motor/fontes/DMSerifDisplay-Regular.ttf'); }
+@font-face { font-family: 'DM Serif'; src: url('/motor/fontes/DMSerifDisplay-Italic.ttf'); font-style: italic; }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: var(--w); height: var(--h); overflow: hidden; background: #000; }
+#palco { position: relative; width: var(--w); height: var(--h); overflow: hidden; font-family: 'Geist', sans-serif; -webkit-font-smoothing: antialiased; }
+#palco img { position: absolute; display: block; user-select: none; }
+.camada { position: absolute; inset: 0; }
+.mascara { overflow: hidden; display: inline-block; vertical-align: bottom; }
+.mascara > span { display: inline-block; }

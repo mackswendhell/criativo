@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<!-- Giro 360 de verdade: GLB do produto (tripo_h3_1_image_to_3d, 9 créditos) num estúdio com reflexo e sombra.
+     Uma volta exata por duração = loop perfeito. Destaques aparecem quando o lado deles vira pra câmera. -->
+<link rel="stylesheet" href="/motor/base.css">
+<script src="/motor/anim.js"></script>
+<script type="importmap">{ "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }</script>
+<style>
+  #palco { background: var(--fundo); color: var(--tinta); }
+  canvas { position: absolute; inset: 0; }
+  .titulo { position: absolute; left: 7%; top: 6%; font-weight: 800; letter-spacing: -0.04em; line-height: 0.95; }
+  .titulo em { font-family: 'DM Serif'; font-weight: 400; font-style: italic; }
+  .destaque { position: absolute; white-space: nowrap; font-weight: 700; letter-spacing: -0.02em; }
+  .destaque::before { content: ''; position: absolute; right: 100%; top: 50%; width: 1.6em; margin-right: 0.4em; border-top: 2px solid currentColor; }
+  .destaque small { display: block; font-family: 'Geist Mono'; font-weight: 400; opacity: 0.65; }
+</style>
+</head>
+<body>
+<div id="palco"></div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+window.__video = { formatos: { '4x5': [1080, 1350], '9x16': [1080, 1920], '1x1': [1080, 1080] }, duracao: 8, fps: 30, bpm: 120, loop: true, trilha: null, sons: [] };
+
+const CENA = {
+  cores: { fundo: '#E9E6E1', tinta: '#15130F' },
+  modelo: '../ref/produto.glb',
+  titulo: ['Uma volta', 'na <em>Aurora</em>'],
+  inclina: 0.18,                                   // câmera um pouco acima (radianos)
+  frente: 0,                                       // rotação que deixa a frente do GLB virada pra câmera (radianos)
+  balanco: 0,                                      // 0 = volta inteira · > 0 = balança ±balanco radianos em torno da frente (embalagem plana)
+  ocupa: 0.55, centroY: 0.6,                       // o produto ocupa 55% da altura da tela, com o centro a 60% de cima
+  destaques: [                                     // angulo: em que ponto da volta (0..1) o lado fica de frente; ponto: no modelo, de -0.5 a 0.5
+    { angulo: 0.12, ponto: [0.3, 0.25, 0.3], rotulo: 'Aço inox', sub: 'parede dupla' },
+    { angulo: 0.45, ponto: [-0.3, -0.1, 0.3], rotulo: '24 h gelado', sub: '12 h quente' },
+    { angulo: 0.78, ponto: [0.25, 0.45, 0.2], rotulo: 'Tampa à prova', sub: 'de vazamento' },
+  ],
+};
+
+const v = A.formato(), W = v.w, H = v.h, palco = document.getElementById('palco');
+for (const [k, c] of Object.entries(CENA.cores)) document.documentElement.style.setProperty('--' + k, c);
+const px = (u) => Math.round(u * W);
+
+const ren = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
+ren.setPixelRatio(1); ren.setSize(W, H); ren.outputColorSpace = THREE.SRGBColorSpace; ren.toneMapping = THREE.ACESFilmicToneMapping;
+ren.shadowMap.enabled = true; ren.shadowMap.type = THREE.PCFSoftShadowMap; palco.append(ren.domElement);
+const cena = new THREE.Scene();
+cena.environment = new THREE.PMREMGenerator(ren).fromScene(new RoomEnvironment(), 0.04).texture;
+const sol = new THREE.DirectionalLight(0xffffff, 2.2); sol.position.set(2, 4, 3); sol.castShadow = true; sol.shadow.mapSize.set(2048, 2048); sol.shadow.radius = 6; cena.add(sol);
+const chao = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.18 })); chao.rotation.x = -Math.PI / 2; chao.receiveShadow = true; cena.add(chao);
+const cam = new THREE.PerspectiveCamera(28, W / H, 0.1, 100);
+
+const gltf = await new GLTFLoader().loadAsync(CENA.modelo);
+const piv = new THREE.Group(), m = gltf.scene; piv.add(m); cena.add(piv);
+m.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
+const caixa = new THREE.Box3().setFromObject(m), tam = caixa.getSize(new THREE.Vector3()), cen = caixa.getCenter(new THREE.Vector3());
+const esc = 1 / Math.max(tam.x, tam.y, tam.z); m.scale.setScalar(esc); m.position.set(-cen.x * esc, -caixa.min.y * esc, -cen.z * esc);
+const alto = tam.y * esc, visH = Math.max(alto / CENA.ocupa, (Math.max(tam.x, tam.z) * esc * 1.25 * H) / W);
+const dist = visH / (2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2))), mira = alto * 0.5 + (CENA.centroY - 0.5) * visH;
+
+const tit = document.createElement('div'); tit.className = 'titulo'; tit.style.fontSize = px(0.09) + 'px';
+tit.innerHTML = CENA.titulo.map((l) => `<div>${l}</div>`).join(''); palco.append(tit);
+const rots = CENA.destaques.map((d) => { const e = document.createElement('div'); e.className = 'destaque'; e.style.fontSize = px(0.032) + 'px';
+  e.innerHTML = `${d.rotulo}<small style="font-size:.62em">${d.sub}</small>`; palco.append(e); return e; });
+const pontos = CENA.destaques.map((d) => new THREE.Vector3(d.ponto[0] * tam.x * esc, (d.ponto[1] + 0.5) * alto, d.ponto[2] * tam.z * esc));
+
+window.seek = async (t) => {
+  const u = (t / v.duracao) % 1, rot = CENA.frente + (CENA.balanco ? CENA.balanco * Math.sin(u * Math.PI * 2) : u * Math.PI * 2); // volta ou balanço: t = duração é igual a t = 0
+  piv.rotation.y = rot;
+  const respira = A.sino(u) * 0.06;
+  cam.position.set(0, mira + Math.sin(CENA.inclina) * dist, Math.cos(CENA.inclina) * dist * (1 - respira));
+  cam.lookAt(0, mira, 0); cam.updateProjectionMatrix();
+  ren.render(cena, cam);
+  CENA.destaques.forEach((d, i) => {
+    const dif = Math.abs(((u - d.angulo + 1.5) % 1) - 0.5);                 // distância na volta até o momento do destaque
+    const vis = A.outC(A.clamp(1 - dif / 0.13));
+    const p = pontos[i].clone().applyMatrix4(piv.matrixWorld).project(cam);
+    const x = (p.x * 0.5 + 0.5) * W, y = (-p.y * 0.5 + 0.5) * H;
+    rots[i].style.left = x + px(0.09) + 'px'; rots[i].style.top = y - px(0.02) + 'px';
+    rots[i].style.opacity = A.n(vis); A.tr(rots[i], `translateX(${A.n((1 - vis) * -24)}px)`);
+  });
+};
+A.pronto();
+</script>
+</body>
+</html>

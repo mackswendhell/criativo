@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<!-- Vista explodida: o produto entra, "abre", as características saem dele uma por batida com rótulo, voltam, fecha no CTA.
+     Copie pra projetos/<nome>/video/, troque o CENA. Assets: produto e elementos SEM FUNDO (image_background_remover). -->
+<link rel="stylesheet" href="/motor/base.css">
+<script src="/motor/anim.js"></script>
+<style>
+  #palco { background: var(--fundo); color: var(--tinta); }
+  .titulo { position: absolute; left: 7%; right: 7%; top: 6%; font-weight: 800; letter-spacing: -0.04em; line-height: 0.95; }
+  .titulo em { font-family: 'DM Serif'; font-weight: 400; font-style: italic; letter-spacing: -0.01em; }
+  .rotulo { position: absolute; transform: translateX(-50%); text-align: center; white-space: nowrap; }
+  .rotulo b { display: block; font-weight: 700; letter-spacing: -0.02em; }
+  .rotulo small { display: block; font-family: 'Geist Mono'; opacity: 0.65; margin-top: 0.3em; }
+  .cta { position: absolute; left: 50%; bottom: 7%; padding: 0.7em 1.4em; border-radius: 999px; background: var(--tinta); color: var(--fundo); font-weight: 700; white-space: nowrap; }
+  svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<div id="palco"><div class="camada" id="camera"></div></div>
+<script>
+window.__video = { formatos: { '4x5': [1080, 1350], '9x16': [1080, 1920], '1x1': [1080, 1080] }, duracao: 8, fps: 30, bpm: 120, loop: false,
+  trilha: null, sons: [] };
+
+const CENA = {
+  cores: { fundo: '#EDE9E1', tinta: '#15130F', destaque: '#F2511F' },
+  titulo: ['Por dentro da', '<em>Aurora</em>'],
+  produto: { src: '../ref/produto-sem-fundo.png', x: 0.5, y: 0.58, larg: 0.5 },          // centro e largura, em fração do palco
+  elementos: [                                                                            // um por batida, a partir da batida 3
+    { src: 'elementos/1.png', x: 0.2, y: 0.36, larg: 0.17, rotulo: 'Couro legítimo', sub: 'curtido ao vegetal' },
+    { src: 'elementos/2.png', x: 0.8, y: 0.38, larg: 0.17, rotulo: 'Forro de algodão', sub: '100% orgânico' },
+    { src: 'elementos/3.png', x: 0.18, y: 0.8, larg: 0.15, rotulo: 'Metais em latão', sub: 'não descascam' },
+    { src: 'elementos/4.png', x: 0.82, y: 0.8, larg: 0.15, rotulo: 'Costura à mão', sub: '12 pontos/cm' },
+  ],
+  cta: 'Peça a sua · link na bio',
+};
+
+const v = A.formato(), W = v.w, H = v.h, cam = document.getElementById('camera');
+for (const [k, c] of Object.entries(CENA.cores)) document.documentElement.style.setProperty('--' + k, c);
+const px = (u) => Math.round(u * W);
+const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); cam.append(svg);
+const linhas = CENA.elementos.map(() => { const l = document.createElementNS(svg.namespaceURI, 'line'); l.setAttribute('stroke', CENA.cores.tinta); l.setAttribute('stroke-width', 2); svg.append(l); return l; });
+const img = (src, larg) => { const i = new Image(); i.src = src; i.style.width = px(larg) + 'px'; cam.append(i); return i; };
+const prod = img(CENA.produto.src, CENA.produto.larg);
+const els = CENA.elementos.map((e) => img(e.src, e.larg));
+const rots = CENA.elementos.map((e) => { const d = document.createElement('div'); d.className = 'rotulo'; d.style.fontSize = px(0.034) + 'px';
+  d.innerHTML = `<span class="mascara"><span><b>${e.rotulo}</b><small style="font-size:.62em">${e.sub}</small></span></span>`; cam.append(d); return d; });
+const tit = document.createElement('div'); tit.className = 'titulo'; tit.style.fontSize = px(0.095) + 'px';
+tit.innerHTML = CENA.titulo.map((l) => `<div class="mascara"><span>${l}</span></div>`).join(''); cam.append(tit);
+const titL = [...tit.querySelectorAll('.mascara > span')];
+const cta = document.createElement('div'); cta.className = 'cta'; cta.style.fontSize = px(0.036) + 'px'; cta.textContent = CENA.cta; cam.append(cta);
+
+const B = A.bat, SAI = 3, VOLTA = SAI + 2 * 4 + 0.5, FIM = 13; // em batidas
+
+window.seek = async (t) => {
+  A.tr(cam, `scale(${A.n(1 + 0.035 * A.seg(t, 0, v.duracao))})`, '50% 55%');            // câmera: um empurrão só, devagar
+  titL.forEach((s, i) => A.tr(s, `translateY(${A.n((1 - A.mola(t, B(0.5 + i * 0.5), 2.4)) * 110)}%)`));
+
+  const entra = A.mola(t, 0, 1.6, 0.8), aperta = A.carimbo(t, B(SAI - 0.5), 0.1);
+  const sobe = A.chega(t, B(FIM), 0.7, A.inOutC);
+  const pw = px(CENA.produto.larg), cx = px(CENA.produto.x), cy = CENA.produto.y * H - sobe * H * 0.06;
+  prod.style.left = cx - pw / 2 + 'px'; prod.style.top = cy - prod.naturalHeight * (pw / prod.naturalWidth) / 2 + 'px';
+  A.tr(prod, `translateY(${A.n((1 - entra) * H * 0.08)}px) scale(${A.n((0.92 + 0.08 * entra) * (1 - 0.06 * sobe))}) scale(${A.n(aperta.sx)}, ${A.n(aperta.sy)})`, '50% 100%');
+  prod.style.opacity = A.n(A.seg(t, 0, 0.25));
+
+  CENA.elementos.forEach((e, i) => {
+    const t0 = B(SAI + i), u = A.mola(t, t0, 1.9, 0.7) - A.mola(t, B(VOLTA) + i * 0.08, 2.4, 0.9);  // sai e volta, uma mola por mudança
+    const ew = px(e.larg), x = A.lerp(cx, px(e.x), u), y = A.lerp(cy, e.y * H, u);
+    const el = els[i]; el.style.left = x - ew / 2 + 'px'; el.style.top = y - ew / 2 + 'px';
+    const vez = B(SAI + CENA.elementos.length + i);                                         // na espera, cada um ganha a sua batida
+    A.tr(el, `scale(${A.n((A.clamp(u, 0, 1.2) * 0.9 + 0.1) * A.pop(t, vez, 0.14))}) rotate(${A.n((1 - u) * (i % 2 ? 24 : -24))}deg)`);
+    rots[i].style.color = A.mixCor(CENA.cores.tinta, CENA.cores.destaque, A.sino(A.seg(t, vez - 0.1, vez + 0.5)));
+    el.style.opacity = A.n(A.clamp(u * 3));
+    const l = linhas[i]; l.setAttribute('x1', cx); l.setAttribute('y1', cy); l.setAttribute('x2', x); l.setAttribute('y2', y); l.style.opacity = A.n(0.35 * A.clamp(u));
+    const r = rots[i], ru = A.mola(t, t0 + 0.25, 2.4) - A.mola(t, B(VOLTA - 0.5), 3);
+    r.style.left = px(e.x) + 'px'; r.style.top = e.y * H + ew * 0.62 + 'px';
+    A.tr(r.firstChild.firstChild, `translateY(${A.n((1 - A.clamp(ru)) * 110)}%)`);
+  });
+
+  const cu = A.mola(t, B(FIM + 1), 2.6);
+  A.tr(cta, `translateX(-50%) scale(${A.n(cu)})`); cta.style.opacity = A.n(A.clamp(cu * 2));
+};
+A.pronto();
+</script>
+</body>
+</html>
