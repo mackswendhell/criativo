@@ -9,19 +9,28 @@
 // __video = { formatos: {'4x5': [1080,1350], ...}, duracao: 8, fps: 30, bpm: 120, loop: true, lufs: -14,
 //             trilha: 'audio/trilha.mp3', sons: [{ t: 1.5, src: 'audio/whoosh.wav', vol: 0.6 }] }   (caminhos relativos ao HTML)
 import fs from 'node:fs'; import path from 'node:path'; import http from 'node:http'; import os from 'node:os'; import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
-const RAIZ = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.glb': 'model/gltf-binary', '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.json': 'application/json', '.mp4': 'video/mp4' };
 
 const args = process.argv.slice(2); const html = path.resolve(args[0] || '');
 const opt = (k, d) => { const i = args.indexOf('--' + k); return i < 0 ? d : args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : true; };
 if (!fs.existsSync(html)) { console.log('uso: node motor/render.mjs <arquivo.html> [--f 4x5,9x16] [--sub 4] [--folha] [--quadro t]'); process.exit(1); }
-const dir = path.dirname(html), base = path.basename(html, '.html'), rel = path.relative(RAIZ, html);
+// HTML de outro projeto (ex.: ../canal-youtube): o servidor serve a pasta dele (a mais próxima com CLAUDE.md, ou --raiz),
+// e /motor/ e /node_modules/ continuam vindo daqui
+const dentro = (p, d) => p === d || p.startsWith(d + path.sep);
+const acharSite = () => { if (opt('raiz', null)) return path.resolve(opt('raiz')); if (dentro(html, RAIZ)) return RAIZ;
+  for (let d = path.dirname(html); d !== path.dirname(d); d = path.dirname(d)) if (fs.existsSync(path.join(d, 'CLAUDE.md'))) return d;
+  return path.dirname(html); };
+const SITE = acharSite();
+const dir = path.dirname(html), base = path.basename(html, '.html'), rel = path.relative(SITE, html).split(path.sep).join('/');
 
 const srv = http.createServer((req, res) => {
-  const p = path.join(RAIZ, decodeURIComponent(req.url.split('?')[0]));
-  if (!p.startsWith(RAIZ) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
+  const url = decodeURIComponent(req.url.split('?')[0]), raiz = /^\/(motor|node_modules)\//.test(url) ? RAIZ : SITE;
+  const p = path.join(raiz, url);
+  if (!dentro(p, raiz) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'Content-Type': TIPOS[path.extname(p).toLowerCase()] || 'application/octet-stream' }); fs.createReadStream(p).pipe(res);
 });
 await new Promise((ok) => srv.listen(0, '127.0.0.1', ok));
@@ -59,7 +68,7 @@ async function soSom(f, ver) {
   const mp4 = path.join(saiDir(ver), `${base}-${v.f}.mp4`), wav = path.join(os.tmpdir(), `${base}-${v.f}-${ver || ''}-${porta}.wav`), tmp = mp4.replace(/\.mp4$/, '-tmp.mp4');
   const temSom = audio(v, wav); if (!temSom) return; await temSom;
   await roda('ffmpeg', ['-y', '-v', 'error', '-i', mp4, '-i', wav, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-t', String(v.duracao), '-movflags', '+faststart', tmp]);
-  fs.renameSync(tmp, mp4); fs.rmSync(wav, { force: true }); console.log('ok som', path.relative(RAIZ, mp4)); if (opt('web', false)) await web(mp4, v);
+  fs.renameSync(tmp, mp4); fs.rmSync(wav, { force: true }); console.log('ok som', path.relative(SITE, mp4)); if (opt('web', false)) await web(mp4, v);
 }
 const saiDir = (ver) => { const d = ver ? path.join(dir, 'loops' + ver) : dir; fs.mkdirSync(d, { recursive: true }); return d; };
 async function video(f, ver) {
@@ -78,7 +87,7 @@ async function video(f, ver) {
   let laco = '';
   if (v.loop) { const a0 = await shot(page, v, 0), a1 = await shot(page, v, v.duracao); laco = a0.equals(a1) ? ' · loop fecha' : ' · LOOP NÃO FECHA (quadro final ≠ quadro 0)'; }
   await page.close(); if (temSom) fs.rmSync(wav, { force: true });
-  console.log('ok', path.relative(RAIZ, mp4), `${v.w}x${v.h}`, n, 'quadros', ((Date.now() - t0) / 1000).toFixed(0) + 's', temSom ? 'com som' : 'sem som', laco);
+  console.log('ok', path.relative(SITE, mp4), `${v.w}x${v.h}`, n, 'quadros', ((Date.now() - t0) / 1000).toFixed(0) + 's', temSom ? 'com som' : 'sem som', laco);
   if (opt('web', false)) await web(mp4, v);
 }
 // versões leves para o site (como o loop.sh): com som, muda e o pôster do quadro do meio
@@ -87,7 +96,7 @@ async function web(mp4, v) {
   await roda('ffmpeg', ['-y', '-v', 'error', '-i', mp4, ...vid, '-c:a', 'aac', '-b:a', '96k', x + '-web.mp4']);
   await roda('ffmpeg', ['-y', '-v', 'error', '-i', mp4, ...vid, '-an', x + '-mudo.mp4']);
   await roda('ffmpeg', ['-y', '-v', 'error', '-ss', String(v.duracao / 2), '-i', mp4, '-frames:v', '1', '-q:v', '3', x + '.jpg']);
-  const mb = (s) => (fs.statSync(s).size / 1e6).toFixed(1) + ' MB'; console.log('   web', path.relative(RAIZ, x + '-web.mp4'), mb(x + '-web.mp4'), '· mudo', mb(x + '-mudo.mp4'));
+  const mb = (s) => (fs.statSync(s).size / 1e6).toFixed(1) + ' MB'; console.log('   web', path.relative(SITE, x + '-web.mp4'), mb(x + '-web.mp4'), '· mudo', mb(x + '-mudo.mp4'));
 }
 
 async function folha(f, ver) {
@@ -96,7 +105,7 @@ async function folha(f, ver) {
   for (const [i, t] of ts.entries()) fs.writeFileSync(path.join(tmp, `${String(i).padStart(3, '0')}.jpg`), await shot(page, v, t, 'jpeg'));
   await page.close(); const cols = Math.min(8, ts.length), lin = Math.ceil(ts.length / cols), out = path.join(saiDir(ver), `${base}-${v.f}-folha.jpg`);
   await roda('ffmpeg', ['-y', '-v', 'error', '-framerate', '1', '-i', path.join(tmp, '%03d.jpg'), '-vf', `scale=270:-1,tile=${cols}x${lin}:padding=6:color=0x181818`, '-frames:v', '1', '-q:v', '3', out]);
-  fs.rmSync(tmp, { recursive: true }); console.log('ok', path.relative(RAIZ, out), ts.length, 'batidas de', passo + 's');
+  fs.rmSync(tmp, { recursive: true }); console.log('ok', path.relative(SITE, out), ts.length, 'batidas de', passo + 's');
 }
 
 try {
@@ -105,7 +114,7 @@ try {
   const todos = Object.keys(await pg.evaluate(() => window.__video.formatos)); await pg.close();
   const fs_ = opt('f', 'all') === 'all' ? todos : String(opt('f')).split(','), vs = opt('v', null) ? String(opt('v')).split(',') : [null];
   if (opt('quadro', null) !== null) {
-    for (const f of fs_) for (const ver of vs) { const { page, v } = await abrir(f, ver); for (const t of String(opt('quadro')).split(',').map(Number)) { const out = path.join(saiDir(ver), `${base}-${v.f}-${t}s.png`); fs.writeFileSync(out, await shot(page, v, t)); console.log('ok', path.relative(RAIZ, out)); } await page.close(); }
+    for (const f of fs_) for (const ver of vs) { const { page, v } = await abrir(f, ver); for (const t of String(opt('quadro')).split(',').map(Number)) { const out = path.join(saiDir(ver), `${base}-${v.f}-${t}s.png`); fs.writeFileSync(out, await shot(page, v, t)); console.log('ok', path.relative(SITE, out)); } await page.close(); }
   } else if (opt('som', false)) { for (const f of fs_) for (const ver of vs) await soSom(f, ver); }
   else if (opt('folha', false)) await Promise.all(fs_.flatMap((f) => vs.map((ver) => folha(f, ver))));
   else await Promise.all(fs_.flatMap((f) => vs.map((ver) => video(f, ver))));

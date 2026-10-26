@@ -19,6 +19,7 @@ Se alguma coisa abaixo faltar, resolva antes de criar o projeto:
 | `guia/formatos.md` | o catálogo: 20 formatos (estáticos e animados), por funil e por tipo de produto, com assets, custo e técnica de cada um |
 | `guia/linhas.md` | as linhas editoriais (o visual inteiro: cor, fonte, luz, movimento, proibidos) |
 | `guia/direcao.md` | prompt de imagem, preparo de camadas, copy, testes de aprovação, cara de IA |
+| `guia/historia.md` | a história em 15 s: filtro da ideia (emoção + final), 3 ganchos por vídeo, os três atos na grade de batida |
 | `guia/video.md` | as regras do motor (função pura de t, molas, grade de batida, câmera, som, revisão) |
 | `motor/` | `anim.js` (molas, easing, batida, parallax), `render.mjs` (render, folha, som, loop), `base.css`, fontes, modelos prontos: `modelo-explodida.html`, `modelo-giro-3d.html` |
 | `scripts/baixar-ig.py` | baixa um post/reel do Instagram como referência (cookies do Chrome logado) |
@@ -50,7 +51,7 @@ Toda geração é baixada (`curl -sLo`) pra pasta. Nunca mexer em outro projeto.
 3. **Orçar.** Some os créditos (custos abaixo e em cada formato). Até 30: siga. Acima: mostre a conta e espere o OK.
 4. **Matéria-prima.** Gere as imagens base no nível 1 (variações), escolha as limpas, prepare as camadas (`guia/direcao.md`). Anote cada geração no `brief.md`.
 5. **Estáticos** (se pedidos): direto da matéria-prima ou subindo de nível as vencedoras.
-6. **Vídeos em código.** Por formato: storyboard na grade de batida no `brief.md` → copie um modelo de `motor/` (ou escreva do zero seguindo `guia/video.md`) → `node motor/render.mjs <html> --folha` → **olhe a folha** e corrija → trilha → `node motor/render.mjs <html> --sub 3`. Todas as proporções saem do mesmo HTML.
+6. **Vídeos em código.** Por formato: filtro da ideia, 3 ganchos e storyboard em três atos na grade de batida no `brief.md` (`guia/historia.md`) → copie um modelo de `motor/` (ou escreva do zero seguindo `guia/video.md`) → `node motor/render.mjs <html> --folha` → **olhe a folha** e corrija → trilha → `node motor/render.mjs <html> --sub 3`. Todas as proporções saem do mesmo HTML.
 7. **Crítica.** Abra as imagens e as folhas de verdade. Testes de `guia/direcao.md`. Corrija os três piores problemas e renderize de novo.
 8. **Entrega.** Mostre o que ficou, os créditos gastos (`higgsfield account status` antes e depois) e pergunte o que sobe de nível ou vira outra variação.
 
