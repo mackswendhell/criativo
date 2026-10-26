@@ -23,11 +23,11 @@ node motor/render.mjs projetos/<p>/video/x.html --sub 3        # MP4 final com m
 node motor/render.mjs projetos/<p>/video/x.html --f 9x16       # só um formato
 ```
 
-Caminhos dentro do HTML são relativos a ele (`../ref/produto-sem-fundo.png`, `assets/...`); `/motor/` e `/node_modules/` são absolutos (o servidor do render serve a raiz do repo). Chrome do sistema via Playwright; WebGL por software (determinístico).
+Caminhos dentro do HTML são relativos a ele (`../ref/produto-sem-fundo.png`, `assets/...`); `/motor/` e `/node_modules/` são absolutos (o servidor do render serve a raiz do repo). HTML de outro projeto (`node motor/render.mjs ../canal-youtube/videos/x/motion/abertura.html`) também roda: o servidor serve a pasta do projeto dele (a mais próxima com `CLAUDE.md`, ou `--raiz <pasta>`) e o `/motor/` continua vindo daqui. Chrome do sistema via Playwright; WebGL por software (determinístico).
 
 ## Ordem de trabalho
 
-1. **Storyboard primeiro**, no `brief.md`: uma linha por batida ou compasso (o que entra, o que sai, que som). Só depois o código.
+1. **Storyboard primeiro**, no `brief.md`: uma linha por batida ou compasso (o que entra, o que sai, que som), nos três atos de `guia/historia.md`. Só depois o código.
 2. Copie um modelo (`modelo-explodida.html`, `modelo-giro-3d.html`) ou escreva do zero com `anim.js`; troque o `CENA`.
 3. `--folha` e **olhe a folha**: texto encostado ou cortado, elemento atrás de outro, tela vazia demais, espera morta, proporção que quebrou. Corrija e repita.
 4. Som. Trilha com `higgsfield generate create sonilo_music --prompt "<gênero, clima>, 120 BPM, entrada forte no primeiro tempo, sem voz" --duration <s> --wait` (0,94 por 15 s); efeitos com `seed_audio --prompt "whoosh curto e seco"` (0,1 cada). Baixe pra `video/audio/`, declare em `__video.trilha` e `__video.sons` ([{t, src, vol}]); coloque cada efeito no acerto da animação. O render mixa e normaliza em -14 LUFS.
